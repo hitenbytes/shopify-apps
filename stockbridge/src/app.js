@@ -8,7 +8,7 @@ const productRoutes = require('./routes/products')
 // const customerRoutes = require('./routes/customers')
 // const orderRoutes = require('./routes/orders')
 // const graphqlRoutes = require('./routes/graphql')
-// const webhookRoutes = require('./routes/webhooks')
+const webhookRoutes = require('./routes/webhooks')
 
 const app = express()
 
@@ -28,7 +28,7 @@ app.use('/api/products', productRoutes)
 // app.use('/api/customers', customerRoutes)
 // app.use('/api/orders', orderRoutes)
 // app.use('/graphql', graphqlRoutes)
-// app.use('/webhooks', webhookRoutes)
+app.use('/webhooks', webhookRoutes)
 
 app.get('/', (req, res) => {
   res.json({ message: 'StockBridge is running' })

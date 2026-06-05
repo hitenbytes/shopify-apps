@@ -2,8 +2,10 @@
 const express = require("express");
 const crypto = require("crypto");
 const axios = require("axios");
+const db = require("../db");
 const { verifyHmac, isValidShop } = require("../utils/hmac");
 const { updateEnv } = require("../utils/envUpdater");
+const { registerWebhooks } = require("../services/registerWebhook");
 
 const router = express.Router();
 const DEFAULT_SCOPES = "read_products";
@@ -128,8 +130,17 @@ router.get("/shopify/callback", async (req, res) => {
       }
     );
 
-    const { access_token, scope } = tokenResponse.data;
+    const { access_token, scope, expires_in } = tokenResponse.data;
+    const expiredAt = new Date();
+    expiredAt.setSeconds(expiredAt.getSeconds() + expires_in);
+
     const storeHandle = shop.replace(/\.myshopify\.com$/i, "");
+
+    db.query("INSERT INTO sessions (shop_domain, access_token, expires_at) VALUES ($1, $2, $3) ON CONFLICT (shop_domain) DO UPDATE SET access_token = EXCLUDED.access_token, expires_at = EXCLUDED.expires_at", [
+      shop,
+      access_token,
+      expiredAt,
+    ]);
 
     updateEnv({
       SHOPIFY_ACCESS_TOKEN: access_token,
@@ -137,11 +148,13 @@ router.get("/shopify/callback", async (req, res) => {
       SHOPIFY_STORE: storeHandle,
     });
 
+    await registerWebhooks(shop, access_token);
+
     return res.status(200).json({
       message: "Shopify access token saved successfully",
       shop,
       scope,
-    }).redirect("/"); // Redirect to home or dashboard after successful auth
+    }).redirect(`https://${shop}/admin/apps/${process.env.SHOPIFY_API_KEY}`); // Redirect to home or dashboard after successful auth
   } catch (error) {
     return res.status(500).json({
       error: "Token exchange failed",
