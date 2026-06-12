@@ -3,7 +3,7 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 
 const productRoutes = require('./routes/products')
-// const variantRoutes = require('./routes/variants')
+const variantRoutes = require('./routes/variants')
 // const inventoryRoutes = require('./routes/inventory')
 // const customerRoutes = require('./routes/customers')
 // const orderRoutes = require('./routes/orders')
@@ -11,6 +11,7 @@ const productRoutes = require('./routes/products')
 const webhookRoutes = require('./routes/webhooks')
 
 const app = express()
+app.use('/webhooks', webhookRoutes)
 
 app.use(express.json())
 app.use(
@@ -23,12 +24,11 @@ app.use(
 )
 app.use('/auth', require('./routes/auth'))
 app.use('/api/products', productRoutes)
-// app.use('/api/variants', variantRoutes)
+app.use('/api/variants', variantRoutes)
 // app.use('/api/inventory', inventoryRoutes)
 // app.use('/api/customers', customerRoutes)
 // app.use('/api/orders', orderRoutes)
 // app.use('/graphql', graphqlRoutes)
-app.use('/webhooks', webhookRoutes)
 
 app.get('/', (req, res) => {
   res.json({ message: 'StockBridge is running' })

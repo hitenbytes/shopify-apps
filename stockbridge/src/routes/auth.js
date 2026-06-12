@@ -38,7 +38,7 @@ function buildAuthorizationUrl({ shop, nonce, clientId, scopes, redirectUri }) {
 
 router.get("/shopify", (req, res) => {
   const { shop, hmac } = req.query;
-
+  console.log(`Initiating auth for shop: ${shop} with HMAC: ${hmac ? "present" : "absent"}`);
   if (!shop) {
     return res.status(400).json({
       error: "Missing 'shop' query parameter",
@@ -131,15 +131,19 @@ router.get("/shopify/callback", async (req, res) => {
     );
 
     const { access_token, scope, expires_in } = tokenResponse.data;
+    console.log({
+  access_token,
+  expires_in,
+  type: typeof expires_in
+});
     const expiredAt = new Date();
     expiredAt.setSeconds(expiredAt.getSeconds() + expires_in);
 
     const storeHandle = shop.replace(/\.myshopify\.com$/i, "");
 
-    db.query("INSERT INTO sessions (shop_domain, access_token, expires_at) VALUES ($1, $2, $3) ON CONFLICT (shop_domain) DO UPDATE SET access_token = EXCLUDED.access_token, expires_at = EXCLUDED.expires_at", [
+    db.query("INSERT INTO sessions (shop_domain, access_token) VALUES ($1, $2) ON CONFLICT (shop_domain) DO UPDATE SET access_token = EXCLUDED.access_token", [
       shop,
       access_token,
-      expiredAt,
     ]);
 
     updateEnv({
@@ -150,12 +154,9 @@ router.get("/shopify/callback", async (req, res) => {
 
     await registerWebhooks(shop, access_token);
 
-    return res.status(200).json({
-      message: "Shopify access token saved successfully",
-      shop,
-      scope,
-    }).redirect(`https://${shop}/admin/apps/${process.env.SHOPIFY_API_KEY}`); // Redirect to home or dashboard after successful auth
+    return res.status(200).redirect(`/`); // Redirect to home or dashboard after successful auth
   } catch (error) {
+    console.error(error);
     return res.status(500).json({
       error: "Token exchange failed",
       details: error.response?.data || error.message,

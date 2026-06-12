@@ -8,7 +8,7 @@ router.get('/', webhookController.getWebhooks);
 // router.post('/orders/updated', express.raw({ type: 'application/json' }), verifyWebhook, webhookController.handleOrdersUpdated)
 // router.post('/products/create', express.raw({ type: 'application/json' }), verifyWebhook, webhookController.handleProductsCreate)
 // router.post('/products/update', express.raw({ type: 'application/json' }), verifyWebhook, webhookController.handleProductsUpdate)
-// router.post('/customers/create', express.raw({ type: 'application/json' }), verifyWebhook, webhookController.handleCustomersCreate)
+router.post('/customers/create', express.raw({ type: 'application/json' }), verifyWebhook, webhookController.handleCustomersCreate)
 // router.post('/app/uninstalled', express.raw({ type: 'application/json' }), verifyWebhook, webhookController.handleAppUninstalled)
 
 

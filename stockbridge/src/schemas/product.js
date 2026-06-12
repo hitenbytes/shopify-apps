@@ -10,6 +10,16 @@ const newProductSchema = zod.object({
   status: zod.enum(['active', 'draft', 'archived']).default('draft'),
 });
 
+
+// Variants Schemas
+const createVariantSchema = zod.object({
+    title: zod.string().min(1, 'Title is required'),
+    price: zod.number().positive('Price must be a greater than 0'),
+    sku: zod.string(),
+    options: zod.array(zod.string()).optional(),
+})
+
 module.exports = {
     newProductSchema,
+    createVariantSchema
 }
