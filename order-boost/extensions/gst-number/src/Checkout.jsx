@@ -96,7 +96,7 @@ function Extension() {
     // }
 
     const sessionToken = await shopify.sessionToken.get();
-    const response = await fetch('https://fantasy-artwork-artificial-preference.trycloudflare.com/api/gst-validate', {
+    const response = await fetch('https://mixing-get-programs-council.trycloudflare.com/api/gst-validate', {
       method: "POST",
       headers: {
         Authorization: `Bearer ${sessionToken}`,

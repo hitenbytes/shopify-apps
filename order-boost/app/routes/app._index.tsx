@@ -1,7 +1,8 @@
-import type {
-  ActionFunctionArgs,
-  HeadersFunction,
-  LoaderFunctionArgs,
+import {
+    useLoaderData,
+  type ActionFunctionArgs,
+  type HeadersFunction,
+  type LoaderFunctionArgs,
 } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -63,7 +64,25 @@ type ShopInfo = {
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { admin } = await authenticate.admin(request);
+
+  const response = await admin.graphql(`#grapql
+    query GetProductTags {
+        productTags(first: 100) {
+            nodes
+            pageInfo {
+                hasNextPage
+                hasPreviousPage
+                startCursor
+                endCursor
+            }
+        }
+    }`);
+  const responseJson = await response.json();
+  console.log("responseJson", responseJson.data)
+  if (responseJson.data) {
+    return {nodes: responseJson.data.productTags?.nodes};
+  }
 
   return null;
 };
@@ -155,17 +174,23 @@ async function readShopifyResponse<T>(response: Response) {
   const json = await response.json();
 
   if (json.errors?.length) {
-    throw new Error(json.errors[0]?.message ?? "Shopify GraphQL request failed.");
+    throw new Error(
+      json.errors[0]?.message ?? "Shopify GraphQL request failed.",
+    );
   }
 
   return json.data as T;
 }
 
-async function fetchRecentProducts(admin: any, shop: ShopInfo) {
+async function fetchRecentProducts(admin: any, shop: ShopInfo, tags:string[]) {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - RECENT_PRODUCT_DAYS);
 
-  const query = `created_at:>=${cutoff.toISOString()} OR (tag:latest OR tag:featured)`;
+  let tagQuery;
+  if (tags.length) {
+    tagQuery = tags.map((tag: string) => `tag:${tag}`).join(" OR ")
+  }
+  const query = `created_at:>=${cutoff.toISOString()} OR (${tagQuery})`;
   const productsById = new Map<string, EligibleProduct>();
   let cursor: string | null = null;
   let hasNextPage = true;
@@ -377,7 +402,6 @@ function buildWelcomeEmailHtml(customer: EligibleCustomer, shop: ShopInfo) {
   `;
 }
 
-
 async function sendBrevoEmail({
   apiKey,
   senderEmail,
@@ -431,7 +455,7 @@ async function sendBrevoEmail({
   }
 }
 
-async function sendLatestProductsEmailCampaign(admin: any) {
+async function sendLatestProductsEmailCampaign(admin: any, tags: string[]) {
   const brevoApiKey = getEnvValue("BREVO_API_KEY");
   const senderEmail = getEnvValue("BREVO_SENDER_EMAIL");
 
@@ -445,14 +469,15 @@ async function sendLatestProductsEmailCampaign(admin: any) {
   if (!senderEmail) {
     return {
       success: false,
-      error: "BREVO_SENDER_EMAIL is required to send the latest products email.",
+      error:
+        "BREVO_SENDER_EMAIL is required to send the latest products email.",
     };
   }
 
   try {
     const shop = await fetchShopInfo(admin);
     const senderName = getEnvValue("BREVO_SENDER_NAME") ?? shop.name;
-    const products = await fetchRecentProducts(admin, shop);
+    const products = await fetchRecentProducts(admin, shop, tags);
 
     if (products.length === 0) {
       return {
@@ -614,7 +639,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const intent = formData.get("intent");
 
   if (intent === LATEST_PRODUCTS_INTENT) {
-    return sendLatestProductsEmailCampaign(admin);
+    const tags = JSON.parse(formData.get('tags') as string || [] as any);
+    return sendLatestProductsEmailCampaign(admin, tags);
   } else if (intent === WELCOME_EMAIL_INTENT) {
     return sendWelcomeEmailToCustomers(admin);
   }
@@ -626,10 +652,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Index() {
+    const productTags = useLoaderData();
+    console.log("productTags", productTags);
   return (
     <s-page heading="Marketing">
       <WelcomeCard />
-      <CollectionShare />
+      <CollectionShare productTags={productTags.nodes}/>
     </s-page>
   );
 }
